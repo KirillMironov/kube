@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: teamcity-agent
+  labels:
+    instance: teamcity-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      instance: teamcity-agent
+  template:
+    metadata:
+      name: teamcity-agent
+      labels:
+        instance: teamcity-agent
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: teamcity-agent
+          image: jetbrains/teamcity-agent:2020.2.2
+          env:
+            - name: AGENT_NAME
+              value: "UbuntuA"
+            - name: SERVER_URL
+              value: "teamcity-server:8111"
+            - name: HOST_OS_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DOCKER_HOST
+              value: tcp://$(HOST_OS_IP):2375
+          volumeMounts:
+            - name: conf
+              mountPath: /data/teamcity_agent/conf
+              readOnly: false
+            - name: work
+              mountPath: /opt/buildagent/work
+              readOnly: false
+            - name: system
+              mountPath: /opt/buildagent/system
+              readOnly: false
+            - name: ext
+              mountPath: /opt/buildagent/ext
+              readOnly: false
+      initContainers:
+        - name: teamcity-agent-init
+          image: busybox
+          command: [ "/bin/sh" ]
+          args: [ "-c", "apk update; apk add ca-certificates wget; update-ca-certificates; cd /mnt/ext; wget https://golang.org/dl/go1.16.linux-amd64.tar.gz; tar xvf *.tar.gz" ]
+          volumeMounts:
+            - name: ext
+              mountPath: /mnt/ext
+              readOnly: false
+      volumes:
+        - name: conf
+          persistentVolumeClaim:
+            claimName: teamcity-agent-conf
+        - name: work
+          persistentVolumeClaim:
+            claimName: teamcity-agent-work
+        - name: system
+          persistentVolumeClaim:
+            claimName: teamcity-agent-system
+        - name: ext
+          persistentVolumeClaim:
+            claimName: teamcity-agent-ext
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-agent-conf
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-agent-work
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-agent-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-agent-ext
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
