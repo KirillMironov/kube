@@ -47,8 +47,22 @@ spec:
       initContainers:
         - name: teamcity-agent-init
           image: busybox
-          command: [ "/bin/sh" ]
-          args: [ "-c", "apk update; apk add ca-certificates wget; update-ca-certificates; cd /mnt/ext; wget https://golang.org/dl/go1.16.linux-amd64.tar.gz; tar xvf *.tar.gz" ]
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - apk update;
+              apk add ca-certificates wget;
+              update-ca-certificates;
+              chown -R 1000:1000 /mnt/ext;
+              cd /mnt/ext;
+              wget https://golang.org/dl/go1.16.linux-amd64.tar.gz;
+              wget https://storage.googleapis.com/flutter_infra/releases/stable/linux/flutter_linux_2.0.6-stable.tar.xz;
+              tar xvf *.tar.gz;
+              tar xvf *.tar.xz;
+              rm go1.16.linux-amd64.tar.gz;
+              rm flutter_linux_2.0.6-stable.tar.xz;
           volumeMounts:
             - name: ext
               mountPath: /mnt/ext
