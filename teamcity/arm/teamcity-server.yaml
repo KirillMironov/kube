@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: teamcity-server
+  labels:
+    instance: teamcity-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      instance: teamcity-server
+  template:
+    metadata:
+      name: teamcity-server
+      labels:
+        instance: teamcity-server
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: teamcity-server
+          image: dylanmunyard/teamcity-server:arm.01
+          env:
+            - name: TEAMCITY_SERVER_MEM_OPTS
+              value: "-Xmx4g"
+          ports:
+            - containerPort: 8111
+          readinessProbe:
+            tcpSocket:
+              port: 8111
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8111
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data/teamcity_server/datadir
+              readOnly: false
+            - name: logs
+              mountPath: /opt/teamcity/logs
+              readOnly: false
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: teamcity-server-data-pvc
+        - name: logs
+          persistentVolumeClaim:
+            claimName: teamcity-server-logs-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-server-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamcity-server-logs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: teamcity-server
+spec:
+  selector:
+    instance: teamcity-server
+  ports:
+    - name: http
+      port: 8111
+      targetPort: 8111
+  type: LoadBalancer
